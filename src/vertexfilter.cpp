@@ -1301,6 +1301,30 @@ void meshopt_encodeFilterOct(void* destination, size_t count, size_t stride, int
 
 		int fu = meshopt_quantizeSnorm(u, bits);
 		int fv = meshopt_quantizeSnorm(v, bits);
+
+		// rounding u/v independently can push the quantized vector across the fold boundary
+		// (|u|+|v| = 1), which flips the z sign during decoding; nudge one component back
+		// across the boundary to keep the vector in the source hemisphere
+		int fm = (1 << (bits - 1)) - 1;
+		int fs = (fu >= 0 ? fu : -fu) + (fv >= 0 ? fv : -fv);
+
+		if (nz >= 0.f ? fs > fm : fs < fm)
+		{
+			// pick the component whose adjustment adds the least rounding error: for the front
+			// hemisphere that's the one that rounded up the least, for the back hemisphere it's
+			// the one that rounded down the least
+			float ru = fabsf(u) * fm, rv = fabsf(v) * fm;
+			ru -= floorf(ru);
+			rv -= floorf(rv);
+
+			bool nudgeu = nz >= 0.f ? (ru >= 0.5f && (rv < 0.5f || ru <= rv)) : (ru < 0.5f && (rv >= 0.5f || ru >= rv));
+
+			if (nudgeu)
+				fu += (fu > 0 ? 1 : -1) * (nz >= 0.f ? -1 : 1);
+			else
+				fv += (fv > 0 ? 1 : -1) * (nz >= 0.f ? -1 : 1);
+		}
+
 		int fo = meshopt_quantizeSnorm(1.f, bits);
 		int fw = meshopt_quantizeSnorm(nw, bytebits);
 

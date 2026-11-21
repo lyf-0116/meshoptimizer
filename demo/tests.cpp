@@ -933,6 +933,46 @@ static void encodeFilterOct12()
 		assert(fabsf(decoded[i] / 32767.f - data[i]) < 1e-3f);
 }
 
+static void encodeFilterOctFold()
+{
+	// normals on the z=0 fold boundary must not flip hemispheres when u/v rounding crosses |u|+|v|=1
+	const float data[3 * 4] = {
+	    -0.834559262f, -0.550918162f, 0, 1,
+	    -0.374039471f, -0.927412808f, 0, 1,
+	    0.99999553f, 0.00298450864f, 0, 1 //
+	};
+
+	const unsigned char expected8[3 * 4] = {
+	    180, 205, 127, 127,
+	    219, 166, 127, 127,
+	    127, 0, 127, 127 //
+	};
+
+	const unsigned short expected16[3 * 4] = {
+	    45798, 52507, 32767, 32767,
+	    56119, 42186, 32767, 32767,
+	    32669, 98, 32767, 32767 //
+	};
+
+	unsigned char encoded8[3 * 4];
+	meshopt_encodeFilterOct(encoded8, 3, 4, 8, data);
+	assert(memcmp(encoded8, expected8, sizeof(expected8)) == 0);
+
+	unsigned short encoded16[3 * 4];
+	meshopt_encodeFilterOct(encoded16, 3, 8, 16, data);
+	assert(memcmp(encoded16, expected16, sizeof(expected16)) == 0);
+
+	// the decoded vectors must stay on the fold (z=0) instead of flipping to the other hemisphere
+	meshopt_decodeFilterOct(encoded8, 3, 4);
+	meshopt_decodeFilterOct(encoded16, 3, 8);
+
+	for (size_t i = 0; i < 3; ++i)
+	{
+		assert(encoded8[i * 4 + 2] < 128);
+		assert(encoded16[i * 4 + 2] < 32768);
+	}
+}
+
 static void encodeFilterQuat12()
 {
 	const float data[4 * 4] = {
@@ -3644,6 +3684,7 @@ void runTests()
 
 	encodeFilterOct8();
 	encodeFilterOct12();
+	encodeFilterOctFold();
 	encodeFilterQuat12();
 	encodeFilterExp();
 	encodeFilterExpZero();
