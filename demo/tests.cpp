@@ -2855,6 +2855,11 @@ static void quantizeFloat()
 	assert(meshopt_quantizeFloat(1.f / zero, 0) == 1.f / zero);
 	assert(meshopt_quantizeFloat(-1.f / zero, 0) == -1.f / zero);
 
+	// denormals and signed zero must keep their sign when flushed to zero
+	assert(meshopt_quantizeFloat(-0.f, 8) == 0.f && signbit(meshopt_quantizeFloat(-0.f, 8)));
+	assert(meshopt_quantizeFloat(-1e-40f, 8) == 0.f && signbit(meshopt_quantizeFloat(-1e-40f, 8)));
+	assert(meshopt_quantizeFloat(1e-40f, 8) == 0.f && !signbit(meshopt_quantizeFloat(1e-40f, 8)));
+
 	float nanf = meshopt_quantizeFloat(zero / zero, 8);
 	assert(nanf != nanf);
 }

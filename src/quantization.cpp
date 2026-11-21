@@ -50,8 +50,8 @@ float meshopt_quantizeFloat(float v, int N)
 	// round all numbers except inf/nan; this is important to make sure nan doesn't overflow into -0
 	ui = e == 0x7f800000 ? ui : rui;
 
-	// flush denormals to zero
-	ui = e == 0 ? 0 : ui;
+	// flush denormals to zero, but preserve the sign bit so that -0 and negative denormals don't decode as +0
+	ui = e == 0 ? (ui & 0x80000000) : ui;
 
 	u.ui = ui;
 	return u.f;
